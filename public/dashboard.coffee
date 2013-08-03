@@ -11,6 +11,7 @@ DIR2TYPE = {'addresses':'addr', \
            'done': '(none)'}
 
 beachMarker = 'images/beachflag.png'
+crosshairMarker = 'images/crosshair.png'
 stopMarker = 'images/stop.png'
 addrMarker = 'images/house.png'
 
@@ -26,17 +27,60 @@ icons = {
   # The anchor point (x,y)
   new google.maps.Point( 0, 32 )
  ),
+ Marina: new google.maps.MarkerImage(
+  stopMarker,
+  new google.maps.Size( 16, 16 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 8, 16 )
+ ),
+ Mission: new google.maps.MarkerImage(
+  stopMarker,
+  new google.maps.Size( 16, 16 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 8, 16 )
+ ),
  stop: new google.maps.MarkerImage(
   stopMarker,
   new google.maps.Size( 16, 16 ),
   new google.maps.Point( 0, 0 ),
   new google.maps.Point( 8, 16 )
+ ),
+ crosshair: new google.maps.MarkerImage(
+  crosshairMarker,
+  new google.maps.Size( 40, 40 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 20, 28 )
+ ),
+ ChinaBasin: new google.maps.MarkerImage(
+  'images/chinabasin.png',
+  new google.maps.Size( 16, 16 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 8, 16 )
+ ),
+ MissionBayEast: new google.maps.MarkerImage(
+  'images/missionbay.png',
+  new google.maps.Size( 16, 16 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 8, 16 )
+ ),
+ MissionBayWest: new google.maps.MarkerImage(
+  'images/missionbay.png',
+  new google.maps.Size( 16, 16 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 8, 16 )
+ ),
+ '(undefined)': new google.maps.MarkerImage(
+  beachMarker,
+  new google.maps.Size( 20, 32 ),
+  new google.maps.Point( 0, 0 ),
+  new google.maps.Point( 0, 32 )
  )
 }
 
 # Aliases
 # ------------------------------------------------------------------------------
 delay = (ms, func) -> setTimeout func, ms
+randomColor = () -> '#'+Math.floor(Math.random()*16777215).toString(16)
 
 #
 # GOOGLE MAPS FUNCTIONS
@@ -64,6 +108,8 @@ class Dashboard
 
     # Google Maps
     center = new google.maps.LatLng(37.776019, -122.393085)
+    # @centerMarker = @mapRefresh center
+    @hq = new google.maps.LatLng(37.776019, -122.393085)
     @map = @createGoogleMap(center)
     @plotAddrs(@map, beachMarker, ['185 berry st, sf']) # office
     # render full map hack
@@ -87,6 +133,7 @@ class Dashboard
       @entries.load =>
         @wire()
         @render()
+        # Plot addresses
         if @entries.addr.length > 0
           async.eachSeries @entries.addr, @plotAddr, =>
             @mapRefresh center
@@ -96,9 +143,19 @@ class Dashboard
         #     async.eachSeries stops, @plotStop, =>
         #       @mapRefresh center
         #       console.log "Done plotting #{route} stops"
+
+        # Plot shuttle routes
         routes = (stops for route,stops of @entries.stop)
         async.eachSeries routes, @plotRoute, =>
+          @mapRefresh center
           console.log "Done plotting shuttle routes"
+
+        # Compute public transit times
+        # if @entries.addr.length > 0
+        #   async.eachSeries @entries.addr, @computePublicTransitTime, =>
+        #     @mapRefresh center
+        #     console.log 'Done computing public transit times'
+
         @$root.removeClass 'hidden'
 
   #
@@ -130,22 +187,26 @@ class Dashboard
           { lightness: 100 },
           { visibility: "simplified" }
         ]
-      # },{
-      #   featureType: "road",
-      #   elementType: "labels",
-      #   stylers: [
-      #     { visibility: "off" }
-      #   ]
       }
     ]
     
     map.setOptions({styles: styles})
+
+    transitLayer = new google.maps.TransitLayer()
+    transitLayer.setMap map
 
     return map
 
   mapRefresh: (center) =>
     google.maps.event.trigger( @map, 'resize' )
     @map.setCenter(center)
+    if @centerMarker
+      @centerMarker.setMap(null);
+    @centerMarker = new google.maps.Marker
+      position: center,
+      map: @map,
+      icon: icons.crosshair
+    window.scrollTo 0,0
 
   # FIXME @plotLatLons function not accessible?
   plotLatLons: (map, marker, latlons) ->
@@ -212,7 +273,8 @@ class Dashboard
     console.log stops
     rendererOptions = {
       map: @map,
-      suppressMarkers: true
+      suppressMarkers: true,
+      polylineOptions:{strokeColor:randomColor()}
       }
     directionsDisplay = new google.maps.DirectionsRenderer(rendererOptions)
     wps = ({location: new google.maps.LatLng(stop.lat,stop.lon)} for stop in stops[0..stops.length-2])
@@ -234,17 +296,38 @@ class Dashboard
         for leg,i in response.routes[0].legs
           ind = (i-1+stops.length) % stops.length
           label = "#{stops[ind].route} - Stop #{stops[ind].name.split('$',2)[0]} - #{stops[ind].name.split('$',2)[1]} || Next stop: #{leg.duration.text} (#{leg.distance.text})"
-          @makeMarker leg.start_location, icons.stop, label
+          @makeMarker leg.start_location, icons[stops[0].route], label
       else
         alert ('failed to get directions')
     callback()
+
+  computePublicTransitTime: (entry, callback) =>
+    delay 3000, =>
+      org = new google.maps.LatLng(entry.lat,entry.lon)
+      request = {
+        origin: org,
+        destination: @hq,
+        travelMode: google.maps.DirectionsTravelMode.TRANSIT
+        }
+      directionsService = new google.maps.DirectionsService()
+      directionsService.route request, (response, status) =>
+        if (status == google.maps.DirectionsStatus.OK)
+          console.log response.routes[0].legs
+          console.log response.routes[0].legs[0].duration.text
+          callback()
+        else
+          console.log "Error getting directions: #{status} | #{entry.name}"
+          if status == "OVER_QUERY_LIMIT"
+            @computePublicTransitTime(entry, callback)
+          else
+            callback()
 
   #
   # RENDER FUNCTIONS
   # ----------------------------------------------------------------------------
 
   # Re-renders all the data.
-  render: ->
+  render: =>
     @$activeList.empty()
     @$doneList.empty()
     @$addrList.empty()
@@ -255,7 +338,7 @@ class Dashboard
     @
 
   # Renders a entry into the list that it belongs to.
-  renderEntry: (entry) ->
+  renderEntry: (entry) =>
     $list = @typeMap[entry.type].list
     # $list = if entry.done then @$doneList else @$activeList
     $list.append @$entryDom(entry)
@@ -264,17 +347,19 @@ class Dashboard
   #
   # @param {Entry} entry the entry to be rendered
   # @return {jQuery<li>} jQuery wrapper for the DOM representing the entry
-  $entryDom: (entry) ->
+  $entryDom: (entry) =>
     $entry = $ @entryTemplate
     $('.entry-name', $entry).text entry.name
     $('.entry-remove-button', $entry).click (event) => @onRemoveEntry event, entry
     if entry.done
-      $('.entry-done-button', $entry).addClass 'hidden'
+      $('.entry-goto-button', $entry).addClass 'hidden'
       $('.entry-active-button', $entry).click (event) =>
         @onActiveEntry event, entry
     else
       $('.entry-active-button', $entry).addClass 'hidden'
-      $('.entry-done-button', $entry).click (event) => @onDoneEntry event, entry
+      $('.entry-goto-button', $entry).click (event) =>
+        @mapRefresh new google.maps.LatLng(entry.lat,entry.lon)
+      # $('.entry-goto-button', $entry).click (event) => @onGoToEntry event, entry
     $entry
 
   # Entry render wrapper 
@@ -292,7 +377,7 @@ class Dashboard
         geocoder = new google.maps.Geocoder()
         geocoder.geocode( { 'address': entry.name}, (results, status) =>
           if (status == google.maps.GeocoderStatus.OK)
-            entry.name = results[0].formatted_address
+            entry.name = results[0].formatted_address.replace('/',' or ')
             if @entries.find entry
               console.log "You already have at #{entry.name} on your list!"
             else
@@ -326,9 +411,13 @@ class Dashboard
         callback()
       else
         geocoder = new google.maps.Geocoder()
-        geocoder.geocode( { 'address': entry.name}, (results, status) =>
+        geocoder.geocode( { 'address': entry.address}, (results, status) =>
+          console.log results
+          console.log status
           if (status == google.maps.GeocoderStatus.OK)
-            entry.name = "#{entry.route}/#{entry.number}$#{results[0].formatted_address}"
+            entry.address = results[0].formatted_address.replace('/',' or ')
+            entry.path = "#{@typeMap.stop.dir}/#{entry.route}/#{entry.number}$#{entry.address}"
+            console.log entry.path
             if @entries.find entry
               console.log "You already have at #{entry.name} on your list!"
             else
@@ -339,9 +428,11 @@ class Dashboard
                 position: new google.maps.LatLng(lat, lon),
                 map: @map,
                 icon: stopMarker
-              latlonEntry = new Entry name: "#{entry.name}/gps$#{lat},#{lon}", \
-                  done: false, type: 'stop', route: entry.route, \
+              latlonEntry = new Entry name: "gps$#{lat},#{lon}", \
+                  path: "#{entry.path}/gps$#{lat},#{lon}", address: entry.address, \
+                  done: entry.done, type: entry.type, route: entry.route, \
                   number: entry.number
+              console.log latlonEntry.path
               @entries.addSubEntry latlonEntry, @toRender entry
             callback()
           else
@@ -387,9 +478,10 @@ class Dashboard
     stopName = stops[0].trim()
     stops = stops[1..]
     if event.target.id == "new-stop-form"
-      stop.replace("\t","$") for stop in stops
-      entries = (new Entry name: entry, done: false, type: 'stop', \
-                route: stopName, number: entry.split('\t',2)[0] for entry in stops)
+      stops = (stop.replace("\t","$") for stop in stops)
+      entries = (new Entry name: entry, type: 'stop', route: stopName, \
+                address: entry.split('$',2)[1], done: false, \
+                number: entry.split('$',2)[0] for entry in stops)
     console.log entries
     # entry = new Entry name: $('#new-entry-name').val(), done: false
     $("#new-#{entry.type}-button").attr 'disabled', 'disabled'
@@ -401,6 +493,14 @@ class Dashboard
         $("#new-#{entry.type}-name").removeAttr('disabled').val ''
         $("#new-#{entry.type}-button").removeAttr 'disabled'
         console.log 'Done adding route'
+
+  # Called when the user wants to mark a entry as done.
+  onGoToEntry: (event, entry) ->
+    $entry = @$entryElement event.target
+    $('button', $entry).attr 'disabled', 'disabled'
+    @entries.setEntryDone entry, true, =>
+      $entry.remove()
+      @renderEntry entry
 
   # Called when the user wants to mark a entry as done.
   onDoneEntry: (event, entry) ->
@@ -553,7 +653,8 @@ class Entries
   # @param {function()} done called when the entry is saved to the user's
   #     Dropbox
   addEntry: (entry, done) ->
-    @dbClient.mkdir entry.path(), '', (error, stat) =>
+    console.log entry
+    @dbClient.mkdir entry.path, '', (error, stat) =>
       return @showError(error) if error
       @addEntryToModel entry
       done()
@@ -564,7 +665,7 @@ class Entries
   # @param {function()} done called when the entry is saved to the user's
   #     Dropbox
   addSubEntry: (entry, done) ->
-    @dbClient.writeFile entry.path(), '', (error, stat) =>
+    @dbClient.writeFile entry.path, '', (error, stat) =>
       return @showError(error) if error
       @addEntryToModel entry
       done()
@@ -594,6 +695,21 @@ class Entries
     @dbClient.remove entry.path(), (error, stat) =>
       return @showError(error) if error
       @removeEntryFromModel entry
+      done()
+
+  # Marks a active entry as done, or a done entry as active.
+  #
+  # @param {Entry} the entry to be changed
+  setEntryGoTo: (entry, newDoneValue, done) ->
+    [oldDoneValue, entry.done] = [entry.done, newDoneValue]
+    newPath = entry.path()
+    entry.done = oldDoneValue
+
+    @dbClient.move entry.path(), newPath, (error, stat) =>
+      return @showError(error) if error
+      @removeEntryFromModel entry
+      entry.done = newDoneValue
+      @addEntryToModel entry
       done()
 
   # Marks a active entry as done, or a done entry as active.
