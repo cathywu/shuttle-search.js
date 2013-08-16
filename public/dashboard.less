@@ -65,7 +65,7 @@ html, body {
 }
 
 #app-ui {
-  width: 900px;
+  width: 1000px;
   margin: 0 auto;
 
   h1 {
@@ -212,7 +212,7 @@ html, body {
   }
 }
 
-input[type=text],textarea {
+.entry-form input[type=text],.entry-form textarea {
   display: inline-block;
   margin: 0;
   line-height: 30px;
@@ -279,7 +279,7 @@ button {
     vertical-align: -4px;
   }
 
-  &.entry-goto-button, &#new-entry-button, &#new-addr-button, &#new-stop-button, &#new-bug-button, &.entry-active-button {
+  &.entry-goto-button, &#new-entry-button, &#new-addr-button, &#new-stop-button, &#new-bug-button, &.entry-active-button, &.entry-toggle-button {
     border-color: #448c42;
     .linear-gradient(#8ed66b, #58ba6d);
 
@@ -302,8 +302,99 @@ button {
 }
 
 // Google Maps styles
+////////////////////////////////////////////////////////////////////////////////
 #map-canvas {
   height: 700px;
   width: 100%;
 }
 
+// Search box styles
+////////////////////////////////////////////////////////////////////////////////
+.search form{
+  width:100%;
+  margin:0 auto;
+}
+.searchform { 
+  padding:6px 15px 6px 15px;
+  margin:3px; 
+  // background: url('./images/search.png') no-repeat 8px 6px; 
+}
+.search input[type=text].searchform {
+  color:#111;
+}
+.search button, .search button:hover {
+  position:relative; 
+  left: -6px;
+  padding:6px 10px 6px 10px;
+  border:1px solid #adc5cf;
+  background: #e4f1f9; /* Old browsers */
+  background: -moz-linear-gradient(top, #e4f1f9 0%, #d5e7f3 100%); /* FF3.6+ */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#e4f1f9), color-stop(100%,#d5e7f3)); /* Chrome,Safari4+ */
+  background: -webkit-linear-gradient(top, #e4f1f9 0%,#d5e7f3 100%); /* Chrome10+,Safari5.1+ */
+  background: -o-linear-gradient(top, #e4f1f9 0%,#d5e7f3 100%); /* Opera 11.10+ */
+  background: -ms-linear-gradient(top, #e4f1f9 0%,#d5e7f3 100%); /* IE10+ */
+  background: linear-gradient(top, #e4f1f9 0%,#d5e7f3 100%); /* W3C */
+  filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#e4f1f9', endColorstr='#d5e7f3',GradientType=0 ); /* IE6-9 */
+  color:#7da2aa;
+  cursor: pointer;
+}
+.search {
+  width:95%;
+  padding:20px 23px;
+  // background: url('./images/light_grey.jpg');
+}
+.search input[type=text]{
+  border:1px solid #acb1b7;
+  background-color:#fcfcfc;
+}
+
+// 2-column styles
+////////////////////////////////////////////////////////////////////////////////
+#transit-options {
+  .font-verdana();
+  float: left;
+  width: 397px;
+  height: 700px;
+  border: 1px #ebebeb solid;
+  input#search-form-orig, input#search-form-dest {
+    width: 280px
+  }
+  button {
+    float: right;
+    width: 200px;
+    margin-right: 41px;
+  }
+  input#datepicker, select#timepicker, select#timingpicker {
+    width:95px;
+  }
+  #transit-results {
+    border-top: 1px #ebebeb solid;
+    padding: 0px 10px;
+    height: 537px;
+
+    #transit-results-list {
+      height: 100%;
+      overflow: auto;
+    }
+    .selected {
+      background: #ebf2fc;
+    }
+  }
+  h4 {
+    color: #888888;
+  }
+  .transit-result {
+    padding: 10px;
+
+    .transit-duration {
+      float: right;
+    }
+  }
+}
+#map-canvas {
+  float: left;
+  width: 600px;
+}
+.clear {
+  clear: both;
+}

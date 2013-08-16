@@ -5,12 +5,15 @@
     <title>DBTA shuttle dashboard - Dropbox</title>
     <link rel="icon" type="image/png" href="images/icon16.png" />
     <link rel="stylesheet/less" type="text/css" href="./dashboard.less" />
+    <link rel="stylesheet/less" type="text/css" href="lib/select2/select2.css" />
     <script type="text/javascript" src="lib/html5shiv.js"></script>
     <script type="text/javascript" src="lib/coffee-script.js"></script>
     <script type="text/javascript" src="lib/dropbox.min.js"></script>
     <script type="text/javascript" src="lib/jquery.min.js"></script>
     <script type="text/javascript" src="lib/less.js"></script>
     <script type="text/javascript" src="lib/async.js"></script>
+    <script type="text/javascript" src="lib/select2/select2.js"></script>
+    <script type="text/javascript" src="lib/time.js"></script>
     <script type="text/javascript"
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQVNRHG2pO1OUZFSyf_MoH1-9QWnuWba0&sensor=false">
     </script>
@@ -32,7 +35,50 @@
           <a href="https://www.dropbox.com/developers">dropbox</a>
         </small>
       </h1>
+      <div id="transit-options">
+        <div class="search">
+        <form id="search-form">
+          <label>A</label>
+          <input type="text" class="searchform square" id="search-form-orig">
+          <br/>
+
+          <label>B</label>
+          <input type="text" class="searchform square" id="search-form-dest" value="Dropbox HQ (185 Berry St)" disabled>
+
+          <select name="timing" id="timingpicker">
+            <!-- <option value="leave-now" selected>Leave now</option> --> 
+            <option value="depart-at">Depart at</option>
+            <option value="arrive-by" selected>Arrive by</option>
+          </select>
+          <input type="text" class="searchform square" id="datepicker" value="Monday" disabled/>
+          <select name="timing" id="timepicker">
+            <option value="7am">7:00am</option>
+            <option value="7:30am">7:30am</option>
+            <option value="8am">8:00am</option>
+            <option value="8:30am">8:30am</option>
+            <option value="9am" selected>9:00am</option>
+            <option value="9:30am">9:30am</option>
+            <option value="10am">10:00am</option>
+            <option value="10:30am">10:30am</option>
+            <option value="11am">11:00am</option>
+            <option value="11:30am">11:30am</option>
+            <option value="12pm">12:00pm</option>
+            <option value="12:30pm">12:30pm</option>
+          </select>
+          <br/>
+
+          <button type="submit" class="searchform">Get Directions</button>
+          <br/>
+        </form>
+        </div>
+
+        <div id="transit-results">
+          <h4 class="hidden">Suggested routes</h4>
+          <ol class="entry-list" id="transit-results-list"></ol>
+        </div>
+      </div>
       <div id="map-canvas" style="height:700px"></div>
+      <div class="clear"></div>
       <div class="notebook-page">
         <aside id="user-info">
           <button type="button" id="signout-button">
@@ -40,7 +86,22 @@
           </button>
           <span id="user-name" />
         </aside>
-        <h2 id="active-entry-heading">Addresses</h2>
+        <h2 id="active-entry-heading">Layers</h2>
+        <div id="layers" class="entry">
+            <form id="layers-form">
+                <input type="checkbox" id="layer-addresses" name="Addresses" value="addr-entry-list">
+                <label for="layer-addresses">Addresses</label><br>
+                <input type="checkbox" id="layer-stops" name="Shuttle Stops" value="stop-entry-list">
+                <label for="layer-stops">Shuttle Stops</label><br>
+                <input type="checkbox" id="layer-bugs" name="Bugs" value="bug-entry-list">
+                <label for="layer-bugs">Bugs</label>
+            </form>
+        </div>
+        <h2 id="active-entry-heading">Addresses
+          <button type="button" class="entry-toggle-button" name="#addr-entry-list">
+            <img src="images/done.png" alt="" /> Toggle
+          </button>
+        </h2>
         <form action="" method="GET" id="new-addr-form" class="entry-form">
           <textarea type="textarea" id="new-addr-name" class="entry-name"
               required="required" placeholder="e.g., 221B Baker Street" ></textarea>
@@ -48,10 +109,14 @@
             <img src="images/add.png" alt="" /> Add
           </button>
         </form>
-        <ol class="entry-list" id="addr-entry-list"></ol>
+        <ol class="entry-list hidden" id="addr-entry-list"></ol>
         <div class="empty-entry">&nbsp;</div>
 
-        <h2 id="active-entry-heading">Shuttle stops</h2>
+        <h2 id="active-entry-heading">Shuttle stops
+          <button type="button" class="entry-toggle-button" name="#stop-entry-list">
+            <img src="images/done.png" alt="" /> Toggle
+          </button>
+        </h2>
         <form action="" method="GET" id="new-stop-form" class="entry-form">
           <textarea type="textarea" id="new-stop-name" class="entry-name"
                  required="required" placeholder="e.g., Post & Taylor" ></textarea>
@@ -59,7 +124,7 @@
             <img src="images/add.png" alt="" /> Add
           </button>
         </form>
-        <ol class="entry-list" id="stop-entry-list"></ol>
+        <ol class="entry-list hidden" id="stop-entry-list"></ol>
         <div class="empty-entry">&nbsp;</div>
 
         <h2 id="active-entry-heading">Bugs</h2>
@@ -89,6 +154,13 @@
             <img src="images/remove.png" alt="" /> Delete
           </button>
         </span>
+      </li>
+    </script>
+    <script type="text/html" id="transit-template">
+      <li class="transit-result">
+        <span class="transit-duration" />
+        <span class="transit-steps" /><br/>
+        <span class="transit-time" />
       </li>
     </script>
   </body>
